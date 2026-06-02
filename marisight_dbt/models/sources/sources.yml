@@ -1,0 +1,51 @@
+version: 2
+
+sources:
+  - name: bronze                          # [REQUIRED] The logical nickname for dbt
+    description: "Raw data from the DBO schema in Snowflake — ingested via S3 stage"
+    database: PROJECT_DB                  # Physical Database name
+    schema: DBO                           # Physical Schema name
+    #loader: S3_STAGE                     # Metadata: What tool loads this? (e.g., Airflow, Fivetran)
+    
+
+    # ------------------- OVERRIDES & QUOTING -------------------
+    quoting:
+      database: false     # No double quotes: "PROJECT_DB"
+      schema: false       # No quotes: DBO
+      identifier: false   # No double quotes on table names
+      
+    # ------------------- THE TABLES -------------------
+    tables:
+      - name: VESSEL
+        description: >
+          Raw vessel records scraped daily. All columns are VARCHAR.
+        config:
+          loaded_at_field: "TRY_TO_TIMESTAMP(REPORT_DATE)"
+          freshness:
+            warn_after:  { count: 25, period: hour }
+            error_after: { count: 49, period: hour }
+
+      - name: PORTS     
+        description:  >
+          World Port Index data — 3,804 ports. Loaded monthly.
+          109 columns covering geography, depth, facilities, and services.
+
+      - name: SEISMIC_EVENTS
+        description: "Real-time seismic events from EMSC via Kafka/Debezium CDC pipeline"
+
+
+        # ------------------- TESTS (Data Quality) -------------------
+        # tests:
+        #   - unique:
+        #       column_name: 
+        #   - not_null:
+        #       column_name: 
+        #   - accepted_values:
+        #       column_name: 
+        #       values: 
+              
+        # ------------------- COLUMNS (Documentation) -------------------
+        # columns:
+        #   - name: 
+        #     description: ""
+        #     quote: true  # Quote this specific column in SQL

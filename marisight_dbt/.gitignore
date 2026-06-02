@@ -1,0 +1,24 @@
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environments
+dbt_venv/
+venv/
+.env
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+
+sample_output/
+__pycache__/
+*.pyc
+.env
