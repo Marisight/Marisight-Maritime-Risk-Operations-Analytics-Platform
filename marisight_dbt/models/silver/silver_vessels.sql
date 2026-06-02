@@ -69,21 +69,19 @@ base AS (
 -- 2. DATE PARSING STRATEGY (ROBUST)
 --------------------------------------------------------------------
 parsed AS (
-
     SELECT
         *,
-
-        ----------------------------------------------------------------
-        -- Extract month-day only (maritime feeds usually omit year)
-        ----------------------------------------------------------------
         REGEXP_SUBSTR(RAW_DEPARTURE, '[A-Z][a-z]{2}\\s+\\d{1,2}') AS DEP_MD,
-        REGEXP_SUBSTR(RAW_ARRIVAL,   '[A-Z][a-z]{2}\\s+\\d{1,2}') AS ARR_MD,
+        
+        -- ATA 
+        CASE WHEN RAW_ARRIVAL LIKE '%ATA:%' THEN REGEXP_SUBSTR(RAW_ARRIVAL, '[A-Z][a-z]{2}\\s+\\d{1,2}') ELSE NULL END AS ATA_MD,
+        
+        -- ETA 
+        CASE WHEN RAW_ARRIVAL LIKE '%ETA:%' THEN REGEXP_SUBSTR(RAW_ARRIVAL, '[A-Z][a-z]{2}\\s+\\d{1,2}') ELSE NULL END AS ETA_MD,
 
         YEAR(REPORT_DATE) AS base_year
-
     FROM base
 ),
-
 --------------------------------------------------------------------
 -- 3. SAFE DATE RESOLUTION (NO HARD GUESSING)
 --------------------------------------------------------------------
@@ -108,20 +106,31 @@ dates AS (
         END AS DEPARTURE_DATE,
 
         ----------------------------------------------------------------
-        -- Arrival date resolution
+        -- Actual Arrival date resolution (ATA)
         ----------------------------------------------------------------
         CASE
-            WHEN ARR_MD IS NULL THEN NULL
+            WHEN ATA_MD IS NULL THEN NULL
             ELSE
                 COALESCE(
-                    TRY_TO_DATE(ARR_MD || ' ' || base_year, 'Mon DD YYYY'),
-                    TRY_TO_DATE(ARR_MD || ' ' || (base_year - 1), 'Mon DD YYYY')
+                    TRY_TO_DATE(ATA_MD || ' ' || base_year, 'Mon DD YYYY'),
+                    TRY_TO_DATE(ATA_MD || ' ' || (base_year - 1), 'Mon DD YYYY')
                 )
-        END AS ARRIVAL_DATE
+        END AS ACTUAL_ARRIVAL_DATE,
+
+        ----------------------------------------------------------------
+        -- Estimated Arrival date resolution (ETA)
+        ----------------------------------------------------------------
+        CASE
+            WHEN ETA_MD IS NULL THEN NULL
+            ELSE
+                COALESCE(
+                    TRY_TO_DATE(ETA_MD || ' ' || base_year, 'Mon DD YYYY'),
+                    TRY_TO_DATE(ETA_MD || ' ' || (base_year - 1), 'Mon DD YYYY')
+                )
+        END AS ESTIMATED_ARRIVAL_DATE
 
     FROM parsed
 ),
-
 --------------------------------------------------------------------
 -- 4. TEMPORAL VALIDATION LAYER
 --------------------------------------------------------------------
@@ -143,9 +152,9 @@ validated AS (
         -- temporal consistency checks
         ----------------------------------------------------------------
         CASE
-            WHEN ARRIVAL_DATE IS NOT NULL
+            WHEN ACTUAL_ARRIVAL_DATE IS NOT NULL
              AND DEPARTURE_DATE IS NOT NULL
-             AND ARRIVAL_DATE < DEPARTURE_DATE
+             AND ACTUAL_ARRIVAL_DATE < DEPARTURE_DATE
             THEN TRUE
             ELSE FALSE
         END AS IS_TEMPORAL_ANOMALY,
@@ -154,7 +163,9 @@ validated AS (
         -- missing critical fields
         ----------------------------------------------------------------
         CASE
-            WHEN DEPARTURE_DATE IS NULL AND ARRIVAL_DATE IS NULL
+            WHEN DEPARTURE_DATE IS NULL 
+             AND ACTUAL_ARRIVAL_DATE IS NULL 
+             AND ESTIMATED_ARRIVAL_DATE IS NULL
             THEN TRUE ELSE FALSE
         END AS IS_MISSING_TIMES
 
@@ -186,7 +197,8 @@ SELECT
     REPORT_DATE,
 
     DEPARTURE_DATE,
-    ARRIVAL_DATE,
+    ACTUAL_ARRIVAL_DATE,      
+    ESTIMATED_ARRIVAL_DATE,
 
     LAST_PORT_NAME,
     LAST_PORT_COUNTRY,
