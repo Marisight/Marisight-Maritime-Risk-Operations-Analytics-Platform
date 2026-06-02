@@ -1,0 +1,42 @@
+-- models/gold/gold_port_supply_details.sql
+-- Grain: one row per port
+-- Detailed 0/1 scoring for each supply and communication factor
+-- Powers the port capability breakdown dashboard
+
+SELECT
+    WORLD_PORT_INDEX_NUMBER,
+    MAIN_PORT_NAME,
+    COUNTRY_CODE,
+    REGION_NAME,
+    HARBOR_SIZE,
+    PORT_DEPTH_CLASS,
+    IS_VALID_COORDINATES,
+    LATITUDE,
+    LONGITUDE,
+
+    -- ── Individual supply factors (1 = available, 0 = not/unknown) ───────────
+    CASE WHEN UPPER(SUPPLIES_PROVISIONS)    IN ('YES','LIMITED','MODERATE','MAJOR') THEN 1 ELSE 0 END AS HAS_PROVISIONS,
+    CASE WHEN UPPER(SUPPLIES_POTABLE_WATER) IN ('YES','LIMITED','MODERATE','MAJOR') THEN 1 ELSE 0 END AS HAS_POTABLE_WATER,
+    CASE WHEN UPPER(SUPPLIES_FUEL_OIL)      IN ('YES','LIMITED','MODERATE','MAJOR') THEN 1 ELSE 0 END AS HAS_FUEL_OIL,
+    CASE WHEN UPPER(SUPPLIES_DIESEL_OIL)    IN ('YES','LIMITED','MODERATE','MAJOR') THEN 1 ELSE 0 END AS HAS_DIESEL_OIL,
+    CASE WHEN UPPER(REPAIRS)                IN ('YES','LIMITED','MODERATE','MAJOR') THEN 1 ELSE 0 END AS HAS_REPAIRS,
+
+    -- ── Individual communication factors ─────────────────────────────────────
+    CASE WHEN UPPER(COMMUNICATIONS_RADIO)     = 'YES' THEN 1 ELSE 0 END AS HAS_RADIO,
+    CASE WHEN UPPER(COMMUNICATIONS_TELEPHONE) = 'YES' THEN 1 ELSE 0 END AS HAS_TELEPHONE,
+    CASE WHEN UPPER(COMMUNICATIONS_AIRPORT)   = 'YES' THEN 1 ELSE 0 END AS HAS_AIRPORT,
+    CASE WHEN UPPER(COMMUNICATIONS_TELEFAX)   = 'YES' THEN 1 ELSE 0 END AS HAS_TELEFAX,
+
+    -- ── Aggregate scores ─────────────────────────────────────────────────────
+    SUPPLY_SCORE,
+    SUPPLY_RATING,
+    COMMUNICATION_SCORE,
+    COMMUNICATION_RATING,
+    OVERALL_PORT_SCORE
+
+FROM (
+    SELECT
+        *,
+        SUPPLY_SCORE + COMMUNICATION_SCORE AS OVERALL_PORT_SCORE
+    FROM {{ ref('gold_ports') }}
+)
