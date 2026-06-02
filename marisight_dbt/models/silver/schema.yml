@@ -55,3 +55,23 @@ models:
         description: "Maximum vessel beam permitted; 0-sentinel converted to NULL."
       - name: LOADED_AT
         description: "Timestamp when dbt wrote this row to Silver."
+
+  - name: silver_seismic_events
+    description: >
+      Cleaned seismic events from EMSC via Kafka/Debezium CDC pipeline.
+      LAT, LON, MAG, DEPTH cast to FLOAT (integer precision only — lost at ingestion).
+      Deduplicated on EVENT_ID; incremental on EARTHQUAKE_TIME.
+    columns:
+      - name: EVENT_ID
+        description: "EMSC global unique event identifier."
+        tests:
+          - unique
+          - not_null
+      - name: MAG
+        description: "Earthquake magnitude (integer precision — connector limitation)."
+      - name: EARTHQUAKE_TIME
+        description: "Actual earthquake occurrence time (UTC)."
+        tests:
+          - not_null
+      - name: FLYNN_REGION
+        description: "Geographic region name from EMSC Flynn region catalog."

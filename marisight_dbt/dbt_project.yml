@@ -30,8 +30,12 @@ models:
     silver:
       +schema: SILVER
       +materialized: table        # default for silver (covers ports)
+      
       silver_vessels:
         +materialized: incremental  # override for vessels only
+
+      silver_seismic_events:
+        +materialized: incremental  
         
     gold:
       +schema: GOLD

@@ -96,7 +96,8 @@ __pycache__/
 dbt_venv/
 venv/
 .env
-
+profiles.yml
+*.user.yml
 # VSCode
 .vscode/
 
