@@ -82,6 +82,36 @@ target/
 profile_default/
 ipython_config.py
 
+--------------------------------------------
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environments
+dbt_venv/
+venv/
+.env
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+
+sample_output/
+__pycache__/
+*.pyc
+.env
+
+--------------------------------------------
+
+
+
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
 #   intended to run in multiple environments; otherwise, check them in:
