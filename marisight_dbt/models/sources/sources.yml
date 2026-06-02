@@ -32,6 +32,7 @@ sources:
 
       - name: SEISMIC_EVENTS
         description: "Real-time seismic events from EMSC via Kafka/Debezium CDC pipeline"
+        identifier: '"marisight.public.seismic_events"'
 
 
         # ------------------- TESTS (Data Quality) -------------------
@@ -44,8 +45,3 @@ sources:
         #       column_name: 
         #       values: 
               
-        # ------------------- COLUMNS (Documentation) -------------------
-        # columns:
-        #   - name: 
-        #     description: ""
-        #     quote: true  # Quote this specific column in SQL
