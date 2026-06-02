@@ -1,4 +1,62 @@
-- name: silver_seismic_events
+version: 2
+
+models:
+  - name: silver_vessels
+    description: >
+      Cleaned and standardised vessel records from DBO.VESSEL (daily scrape).
+      Numeric/date casting, null normalisation, coordinate validity flag, and
+      deduplication to one row per vessel per report date.
+    columns:
+      - name: NAME
+        description: "Vessel name (trimmed). Not null."
+        tests:
+          - not_null
+      - name: REPORT_DATE
+        description: "Date the record was scraped (parsed from 'YYYY-MM-DD HH24:MI')."
+        tests:
+          - not_null
+      - name: IS_VALID_COORDINATES
+        description: "TRUE when destination lat/lon are present and within valid ranges."
+      - name: REPORTED_STATUS
+        description: "Navigation status; noise values ('None','-') normalised to NULL."
+
+  - name: silver_ports
+    description: >
+      Cleaned and standardised port records from DBO.PORTS (NGA World Port Index,
+      monthly load). 57 analytically useful columns; categoricals normalised
+      ('Unknown'/blank/'-'/'N/A' -> NULL); 0-sentinel depths/dimensions converted
+      to NULL; coordinate validity flag added; deduplicated to one row per port.
+    columns:
+      - name: WORLD_PORT_INDEX_NUMBER
+        tests:
+          - unique
+          - not_null
+      - name: MAIN_PORT_NAME
+        description: "Primary port name."
+      - name: LATITUDE
+        description: "Decimal degrees latitude."
+      - name: LONGITUDE
+        description: "Decimal degrees longitude."
+      - name: IS_VALID_COORDINATES
+        description: "TRUE when lat in [-90,90] and lon in [-180,180]."
+      - name: HARBOR_SIZE
+        tests:
+          - accepted_values:
+              values: ['Very Small', 'Small', 'Medium', 'Large']
+              config:
+                severity: warn
+      - name: CHANNEL_DEPTH_M
+        description: "Channel depth in metres; 0-sentinel converted to NULL."
+      - name: MAXIMUM_VESSEL_DRAFT_M
+        description: "Maximum vessel draft permitted; 0-sentinel converted to NULL."
+      - name: MAXIMUM_VESSEL_LENGTH_M
+        description: "Maximum vessel length permitted; 0-sentinel converted to NULL."
+      - name: MAXIMUM_VESSEL_BEAM_M
+        description: "Maximum vessel beam permitted; 0-sentinel converted to NULL."
+      - name: LOADED_AT
+        description: "Timestamp when dbt wrote this row to Silver."
+
+  - name: silver_seismic_events
     description: >
       Cleaned seismic events from EMSC via Kafka/Debezium CDC pipeline.
       LATITUDE, LONGITUDE, MAGNITUDE, DEPTH_KM cast to FLOAT (integer precision only — lost at ingestion).
