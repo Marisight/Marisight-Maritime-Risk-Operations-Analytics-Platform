@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: gold_vessels
+    description: "Gold layer vessel model. Contains standardized vessel data with inferred calculations to support performance reporting and waiting time analysis."
+    columns:
+      - name: NAME
+        description: "Name of the vessel."
+        tests:
+          - not_null
+
+      - name: REPORT_DATE
+        description: "The date of the report for the vessel's status."
+        tests:
+          - not_null
+
+      - name: LATEST_ARRIVAL_DATE
+        description: "Unified arrival date, using the actual date if available, otherwise falling back to the estimated date."
+
+      - name: VESSEL_AGE
+        description: "Age of the vessel in years (Current Year - Year Built)."
+
+      - name: AGE_CATEGORY
+        description: "Classification of vessel age (New, Mid-life, Aging, Old)."
+
+      - name: SIZE_CATEGORY
+        description: "Classification of vessel size based on Deadweight Tonnage."
+
+      - name: IS_ANCHORED
+        description: "Boolean flag indicating if the vessel status is 'Anchored'. Used for calculating waiting time."
+        tests:
+          - accepted_values:
+              values: [true, false]
+
+      - name: IS_MOORED
+        description: "Boolean flag indicating if the vessel status is 'Moored'."
+        tests:
+          - accepted_values:
+              values: [true, false]
+
+      - name: VOYAGE_STATUS
+        description: "Inferred voyage status (derived from reported status or inferred based on port/trip data)."
+
+      - name: IS_TEMPORAL_ANOMALY
+        description: "Flag for logical errors in dates (e.g., arrival date preceding departure date)."
+        tests:
+          - accepted_values:
+              values: [true, false]
