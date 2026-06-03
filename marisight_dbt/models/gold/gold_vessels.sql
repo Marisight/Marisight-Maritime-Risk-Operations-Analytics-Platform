@@ -55,7 +55,7 @@ SELECT
     -- ── Derived: Destination validity ────────────────────────────────────────
     CASE
         WHEN DESTINATION_PORT_NAME IS NOT NULL
-         AND IS_VALID_COORDINATES = TRUE
+        AND IS_VALID_COORDINATES = TRUE
         THEN TRUE
         ELSE FALSE
     END AS HAS_VALID_DESTINATION,
@@ -63,7 +63,7 @@ SELECT
     -- ── Derived: Days since departure ────────────────────────────────────────
     CASE
         WHEN DEPARTURE_DATE IS NOT NULL
-         AND REPORT_DATE    IS NOT NULL
+        AND REPORT_DATE    IS NOT NULL
         THEN DATEDIFF('day', DEPARTURE_DATE, REPORT_DATE)
         ELSE NULL
     END AS DAYS_SINCE_DEPARTURE,
@@ -71,17 +71,19 @@ SELECT
     -- ── Derived: Voyage status inference ─────────────────────────────────────
     -- Adds a human-readable status when REPORTED_STATUS is NULL
     CASE
-        WHEN REPORTED_STATUS IS NOT NULL         THEN REPORTED_STATUS
+        WHEN REPORTED_STATUS IS NOT NULL              THEN REPORTED_STATUS
         WHEN DESTINATION_PORT_NAME IS NOT NULL
-         AND DEPARTURE_DATE        IS NOT NULL   THEN 'In Transit (inferred)'
+        AND DEPARTURE_DATE        IS NOT NULL        THEN 'In Transit (inferred)'
         WHEN LAST_PORT_NAME        IS NOT NULL
-         AND DESTINATION_PORT_NAME IS NULL       THEN 'At Port (inferred)'
+        AND DESTINATION_PORT_NAME IS NULL            THEN 'At Port (inferred)'
         ELSE 'Unknown'
     END AS VOYAGE_STATUS,
 
     -- ── Derived: Status Flags (for easy calculation) ─────────────────────
-    CASE WHEN REPORTED_STATUS ILIKE '%Anchored%' THEN TRUE ELSE FALSE END AS IS_ANCHORED,
-    CASE WHEN REPORTED_STATUS ILIKE '%Moored%'   THEN TRUE ELSE FALSE END AS IS_MOORED,
-    CASE WHEN REPORTED_STATUS ILIKE '%Underway%' THEN TRUE ELSE FALSE END AS IS_UNDERWAY
+    CASE WHEN REPORTED_STATUS ILIKE '%anchor%'              THEN TRUE ELSE FALSE END AS IS_ANCHORED,
+    CASE WHEN REPORTED_STATUS ILIKE '%moor%'                THEN TRUE ELSE FALSE END AS IS_MOORED,
+    CASE WHEN REPORTED_STATUS ILIKE '%under way%'
+    OR REPORTED_STATUS ILIKE '%underway%'
+    OR REPORTED_STATUS ILIKE '%sailing%'              THEN TRUE ELSE FALSE END AS IS_UNDERWAY
 
 FROM {{ ref('silver_vessels') }}

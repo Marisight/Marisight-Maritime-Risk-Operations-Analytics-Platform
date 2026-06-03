@@ -53,8 +53,8 @@ SELECT
         
         -- 4. الموانئ المتكاملة العملاقة (بتخدم كل أنواع البضائع)
         WHEN (HAS_CONTAINER_FACILITY = 1 OR HAS_RO_RO_FACILITY = 1) 
-             AND (HAS_SOLID_BULK_FACILITY = 1 OR HAS_LIQUID_BULK_FACILITY = 1) THEN 'Multi-Purpose Commercial Port'
-             
+            AND (HAS_SOLID_BULK_FACILITY = 1 OR HAS_LIQUID_BULK_FACILITY = 1) THEN 'Multi-Purpose Commercial Port'
+        
         -- 5. موانئ صيانة وبناء السفن
         WHEN DRY_DOCK_SIZE IN ('Medium', 'Large') OR REPAIR_CAPABILITY = 'Major' THEN 'Shipyard & Maintenance Port'
         
