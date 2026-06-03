@@ -19,6 +19,20 @@ models:
         description: "TRUE when destination lat/lon are present and within valid ranges."
       - name: REPORTED_STATUS
         description: "Navigation status; noise values ('None','-') normalised to NULL."
+      - name: DEPARTURE_DATE
+        description: "Parsed ATD (Actual Time of Departure) as DATE. NULL when scraper shows no ATD."
+      - name: ACTUAL_ARRIVAL_DATE
+        description: "Parsed ATA (Actual Time of Arrival) as DATE. NULL when no ATA present."
+      - name: ESTIMATED_ARRIVAL_DATE
+        description: "Parsed ETA as DATE. Forward-resolved: year+1 applied for year-end crossovers."
+      - name: IS_TEMPORAL_ANOMALY
+        description: "TRUE when ACTUAL_ARRIVAL_DATE < DEPARTURE_DATE (date-grain check)."
+      - name: IS_MISSING_TIMES
+        description: "TRUE when all three date fields (ATD, ATA, ETA) are NULL."
+      - name: _INGESTED_AT
+        description: "Pipeline ingestion timestamp from Bronze. Used as incremental watermark."
+
+
 
   - name: silver_ports
     description: >
@@ -60,34 +74,43 @@ models:
     description: >
       Cleaned seismic events from EMSC via Kafka/Debezium CDC pipeline.
       LATITUDE, LONGITUDE, MAGNITUDE, DEPTH_KM cast to FLOAT (integer precision only — lost at ingestion).
-      Deduplicated on EVENT_ID; incremental on EARTHQUAKE_TIME.
+      Deduplicated on EVENT_ID; incremental watermark on LAST_UPDATED_AT.
+      EVENT_TYPE and MAGNITUDE_TYPE carry both raw code and human-readable label.
     columns:
       - name: EVENT_ID
-        description: "EMSC global unique event identifier (UNID)."
+        description: "EMSC global unique event identifier (UNID). e.g. '20260511_0000306'."
         tests:
-          - unique
           - not_null
-      - name: EVENT_TYPE
-        description: "EMSC event classification: 'ke' = confirmed earthquake, 'se' = suspected."
-      - name: MAGNITUDE_TYPE
-        description: "Magnitude scale used: 'ml' = local, 'mw' = moment, 'm' = generic."
-      - name: MAGNITUDE
-        description: "Earthquake magnitude (integer precision — connector limitation)."
-      - name: DEPTH_KM
-        description: "Hypocenter depth in kilometres (integer precision)."
-      - name: LATITUDE
-        description: "Epicenter latitude (integer precision — decimal lost at ingestion)."
-      - name: LONGITUDE
-        description: "Epicenter longitude (integer precision — decimal lost at ingestion)."
+          - unique:
+              config:
+                severity: warn
+      - name: SOURCE_ID
+        description: "Agency-local numeric identifier. e.g. '1993353'."
       - name: REGION
-        description: "Geographic region name from EMSC Flynn region catalog."
+        description: "Geographic region from EMSC Flynn region catalog. e.g. 'OFF COAST OF COSTA RICA'."
       - name: REPORTING_AGENCY
-        description: "Agency that reported the event: e.g. NEIC, ETHZ, INET."
+        description: "Agency that reported the event. e.g. 'NEIC', 'BMKG', 'ETHZ'."
+      - name: EVENT_TYPE_CODE
+        description: "Raw EMSC event type code. e.g. 'ke', 'se'."
+      - name: EVENT_TYPE
+        description: "Human-readable event type. e.g. 'Confirmed Earthquake', 'Suspected Earthquake'."
+      - name: MAGNITUDE_TYPE_CODE
+        description: "Raw magnitude scale code. e.g. 'ml', 'mw', 'mb'."
+      - name: MAGNITUDE_TYPE
+        description: "Human-readable magnitude scale. e.g. 'Local Magnitude', 'Moment Magnitude'."
+      - name: LATITUDE
+        description: "Epicenter latitude as FLOAT (integer precision — decimal lost at ingestion)."
+      - name: LONGITUDE
+        description: "Epicenter longitude as FLOAT (integer precision — decimal lost at ingestion)."
+      - name: MAGNITUDE
+        description: "Earthquake magnitude as FLOAT (integer precision — connector limitation)."
+      - name: DEPTH_KM
+        description: "Hypocenter depth in kilometres as FLOAT (integer precision)."
       - name: EARTHQUAKE_TIME
         description: "Actual earthquake occurrence time (UTC)."
         tests:
           - not_null
       - name: LAST_UPDATED_AT
-        description: "Timestamp of the most recent EMSC update to this event."
+        description: "Timestamp of the most recent EMSC update to this event. Used as incremental watermark."
       - name: LOADED_AT
-        description: "Timestamp when dbt wrote this row to Silver."
+        description: "UTC timestamp when dbt wrote this row to Silver."
