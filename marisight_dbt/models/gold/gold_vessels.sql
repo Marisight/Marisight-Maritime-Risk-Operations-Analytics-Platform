@@ -53,29 +53,29 @@ SELECT
     END AS SIZE_CATEGORY,
 
     -- ── Derived: Destination validity ────────────────────────────────────────
+    -- 🛠️ [تعديل 1]: تبسيط الشرط ليعتمد فقط على وجود اسم للوجهة 
     CASE
-        WHEN DESTINATION_PORT_NAME IS NOT NULL
-        AND IS_VALID_COORDINATES = TRUE
-        THEN TRUE
+        WHEN DESTINATION_PORT_NAME IS NOT NULL THEN TRUE
         ELSE FALSE
     END AS HAS_VALID_DESTINATION,
 
     -- ── Derived: Days since departure ────────────────────────────────────────
     CASE
         WHEN DEPARTURE_DATE IS NOT NULL
-        AND REPORT_DATE    IS NOT NULL
+        AND REPORT_DATE  IS NOT NULL
         THEN DATEDIFF('day', DEPARTURE_DATE, REPORT_DATE)
         ELSE NULL
     END AS DAYS_SINCE_DEPARTURE,
 
     -- ── Derived: Voyage status inference ─────────────────────────────────────
-    -- Adds a human-readable status when REPORTED_STATUS is NULL
+    -- 🛠️ [تعديل 2]: تطوير حالات السفينة لتشمل كل السيناريوهات
     CASE
-        WHEN REPORTED_STATUS IS NOT NULL              THEN REPORTED_STATUS
-        WHEN DESTINATION_PORT_NAME IS NOT NULL
-        AND DEPARTURE_DATE        IS NOT NULL        THEN 'In Transit (inferred)'
-        WHEN LAST_PORT_NAME        IS NOT NULL
-        AND DESTINATION_PORT_NAME IS NULL            THEN 'At Port (inferred)'
+        WHEN REPORTED_STATUS IS NOT NULL THEN REPORTED_STATUS
+        WHEN ACTUAL_ARRIVAL_DATE IS NOT NULL THEN 'Arrived / At Berth'
+        WHEN DESTINATION_PORT_NAME IS NOT NULL AND REPORTED_STATUS ILIKE '%anchor%' THEN 'Waiting at Anchorage'
+        WHEN DESTINATION_PORT_NAME IS NOT NULL AND DEPARTURE_DATE IS NOT NULL THEN 'In Transit'
+        WHEN LAST_PORT_NAME IS NOT NULL AND DESTINATION_PORT_NAME IS NULL THEN 'At Port'
+        WHEN ESTIMATED_ARRIVAL_DATE < CURRENT_DATE AND ACTUAL_ARRIVAL_DATE IS NULL THEN 'Delayed'
         ELSE 'Unknown'
     END AS VOYAGE_STATUS,
 
