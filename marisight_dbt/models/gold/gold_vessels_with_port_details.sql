@@ -52,8 +52,20 @@ SELECT
     CASE
         WHEN p.WORLD_PORT_INDEX_NUMBER IS NOT NULL THEN TRUE
         ELSE FALSE
-    END AS DESTINATION_PORT_FOUND
+    END AS DESTINATION_PORT_FOUND,
+
+    -- ── Added Vessel Activity Status ─────────────────────────────────────────
+    CASE 
+        WHEN v.REPORT_DATE >= DATEADD(hour, -48, CURRENT_TIMESTAMP()) THEN 'Active'
+        ELSE 'Inactive'
+    END AS VESSEL_STATUS
 
 FROM {{ ref('gold_vessels') }}    v
+LEFT JOIN {{ ref('port_aliases') }} a
+    ON UPPER(TRIM(v.DESTINATION_PORT_NAME)) = UPPER(TRIM(a.RAW_NAME))
 LEFT JOIN {{ ref('gold_ports') }} p
-    ON UPPER(TRIM(v.DESTINATION_PORT_NAME)) = UPPER(TRIM(p.MAIN_PORT_NAME))
+    ON UPPER(TRIM(COALESCE(a.MAPPED_NAME, v.DESTINATION_PORT_NAME))) = UPPER(TRIM(p.MAIN_PORT_NAME))
+    AND (
+        v.DESTINATION_PORT_COUNTRY IS NULL
+        OR UPPER(TRIM(v.DESTINATION_PORT_COUNTRY)) = UPPER(TRIM(p.COUNTRY_CODE))
+    )

@@ -124,9 +124,9 @@ enriched AS (
         *,
         CASE
             WHEN LATITUDE  IS NOT NULL
-             AND LONGITUDE IS NOT NULL
-             AND LATITUDE  BETWEEN -90  AND 90
-             AND LONGITUDE BETWEEN -180 AND 180
+            AND LONGITUDE IS NOT NULL
+            AND LATITUDE  BETWEEN -90  AND 90
+            AND LONGITUDE BETWEEN -180 AND 180
             THEN TRUE ELSE FALSE
         END AS IS_VALID_COORDINATES
     FROM base
