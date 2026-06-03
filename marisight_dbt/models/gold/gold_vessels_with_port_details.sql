@@ -20,18 +20,45 @@ SELECT
     v.LAST_PORT_COUNTRY,
     v.DESTINATION_PORT_NAME,
     v.DESTINATION_PORT_COUNTRY,
+    
+    -- 🛠️ [تعديل 3] دمج الإحداثيات من جدول السفن والموانئ بشكل صحيح
     COALESCE(v.DESTINATION_PORT_LAT, p.LATITUDE) AS DESTINATION_PORT_LAT,
     COALESCE(v.DESTINATION_PORT_LON, p.LONGITUDE) AS DESTINATION_PORT_LON,
-    v.IS_VALID_COORDINATES,
+    
+    -- 🛠️ [تعديل 4] احتساب صحة الإحداثيات ديناميكياً
+    CASE 
+        WHEN COALESCE(v.DESTINATION_PORT_LAT, p.LATITUDE) IS NOT NULL 
+        AND COALESCE(v.DESTINATION_PORT_LON, p.LONGITUDE) IS NOT NULL 
+        THEN TRUE 
+        ELSE FALSE 
+    END AS IS_VALID_COORDINATES,
+    
     v.REPORTED_STATUS,
     v.REPORT_DATE,
     v.DETAIL_LINK,
     v.VESSEL_AGE,
     v.AGE_CATEGORY,
     v.SIZE_CATEGORY,
-    v.HAS_VALID_DESTINATION,
+    
+    -- 🛠️ [تعديل 5] تحديث صحة الوجهة بناءً على نجاح عملية الربط
+    CASE 
+        WHEN v.DESTINATION_PORT_NAME IS NOT NULL 
+        AND (p.WORLD_PORT_INDEX_NUMBER IS NOT NULL OR v.DESTINATION_PORT_LAT IS NOT NULL)
+        THEN TRUE 
+        ELSE FALSE 
+    END AS HAS_VALID_DESTINATION,
+    
     v.DAYS_SINCE_DEPARTURE,
     v.VOYAGE_STATUS,
+
+    -- 🛠️ [تعديل 6] إضافة علم الوصول (IS_ARRIVED) بناءً على الدمج وحالة الرحلة
+    CASE 
+        WHEN v.ACTUAL_ARRIVAL_DATE IS NOT NULL THEN TRUE
+        WHEN p.WORLD_PORT_INDEX_NUMBER IS NOT NULL 
+             AND (v.REPORTED_STATUS ILIKE '%moor%' OR v.REPORTED_STATUS ILIKE '%anchor%') THEN TRUE
+        WHEN v.VOYAGE_STATUS IN ('Arrived / At Berth', 'At Port') THEN TRUE
+        ELSE FALSE 
+    END AS IS_ARRIVED,
 
     -- ── Matched port capabilities (NULL when no match) ───────────────────────
     p.WORLD_PORT_INDEX_NUMBER           AS DEST_PORT_INDEX_NUMBER,
@@ -65,7 +92,10 @@ LEFT JOIN {{ ref('port_aliases') }} a
     ON UPPER(TRIM(v.DESTINATION_PORT_NAME)) = UPPER(TRIM(a.RAW_NAME))
 LEFT JOIN {{ ref('gold_ports') }} p
     ON UPPER(TRIM(COALESCE(a.MAPPED_NAME, v.DESTINATION_PORT_NAME))) = UPPER(TRIM(p.MAIN_PORT_NAME))
+    -- 🛠️ [تعديل 7] تم إيقاف شرط مطابقة الدولة لتجنب فشل الربط
+    /*
     AND (
         v.DESTINATION_PORT_COUNTRY IS NULL
         OR UPPER(TRIM(v.DESTINATION_PORT_COUNTRY)) = UPPER(TRIM(p.COUNTRY_CODE))
     )
+    */
