@@ -5,7 +5,7 @@ sources:
     description: "Raw data from the DBO schema in Snowflake — ingested via S3 stage"
     database: PROJECT_DB                  # Physical Database name
     schema: DBO                           # Physical Schema name
-    #loader: S3_STAGE                     # Metadata: What tool loads this? (e.g., Airflow, Fivetran)
+
     
 
     # ------------------- OVERRIDES & QUOTING -------------------
@@ -31,17 +31,6 @@ sources:
           109 columns covering geography, depth, facilities, and services.
 
       - name: SEISMIC_EVENTS
-        description: "Real-time seismic events from EMSC via Kafka/Debezium CDC pipeline"
+        description: "Real-time seismic events from EMSC via Kafka/Debezium CDC pipeline. Contains CDC fields (__DELETED, ACTION) and Kafka metadata (RECORD_METADATA) dropped at Silver."
         identifier: '"marisight.public.seismic_events"'
 
-
-        # ------------------- TESTS (Data Quality) -------------------
-        # tests:
-        #   - unique:
-        #       column_name: 
-        #   - not_null:
-        #       column_name: 
-        #   - accepted_values:
-        #       column_name: 
-        #       values: 
-              
