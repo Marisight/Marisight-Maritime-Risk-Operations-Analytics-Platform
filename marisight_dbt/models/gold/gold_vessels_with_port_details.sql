@@ -32,6 +32,11 @@ SELECT
     v.HAS_VALID_DESTINATION,
     v.DAYS_SINCE_DEPARTURE,
     v.VOYAGE_STATUS,
+    v.IS_ANCHORED,
+    v.IS_MOORED,
+    v.IS_UNDERWAY,
+    IS_TEMPORAL_ANOMALY,
+    IS_MISSING_TIMES,
 
     -- ── Matched port capabilities (NULL when no match) ───────────────────────
     p.WORLD_PORT_INDEX_NUMBER           AS DEST_PORT_INDEX_NUMBER,
