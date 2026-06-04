@@ -1,5 +1,4 @@
 version: 2
-
 models:
   - name: gold_vessels
     description: "Gold layer vessel model. Contains standardized vessel data with inferred calculations to support performance reporting and waiting time analysis."
@@ -46,3 +45,93 @@ models:
         tests:
           - accepted_values:
               values: [true, false]
+  # - name: dim_date
+  #   description: "Dimension table for dates."
+  #   columns:
+  #     - name: DATE_SK
+  #       description: "The primary date key (YYYYMMDD)."
+  #       tests: [unique, not_null]
+
+  # - name: fact_vessel_voyage
+  #   description: "One row per vessel per report_date."
+  #   columns:
+  #     - name: VOYAGE_SK
+  #       description: "Surrogate key (SHA-256 of NAME + REPORT_DATE + STATUS)."
+  #       tests: [unique, not_null]
+  #     - name: DATE_SK
+  #       description: "FK -> dim_date.DATE_SK"
+  #       tests:
+  #         - not_null
+  #         - relationships:
+  #             to: ref('dim_date')
+  #             field: DATE_SK
+
+  # - name: fact_daily_seismic
+  #   description: "Daily aggregation of seismic events."
+  #   columns:
+  #     - name: DAILY_SEISMIC_SK
+  #       tests: [unique, not_null]
+  #     - name: DATE_SK
+  #       description: "FK -> dim_date.DATE_SK"
+  #       tests:
+  #         - not_null
+  #         - relationships:
+  #             to: ref('dim_date')
+  #             field: DATE_SK
+
+  # - name: fact_seismic_port_proximity
+  #   description: "Bridge fact linking seismic events and ports."
+  #   columns:
+  #     - name: PROXIMITY_SK
+  #       tests: [unique, not_null]
+  #     - name: SEISMIC_EVENT_SK
+  #       tests:
+  #         - not_null
+  #         - relationships:
+  #             to: ref('dim_seismic_event')
+  #             field: SEISMIC_EVENT_SK
+  #     - name: PORT_SK
+  #       tests:
+  #         - relationships:
+  #             to: ref('dim_port')
+  #             field: PORT_SK
+  # 
+  - name: dim_date
+    description: "Standard calendar dimension to support time-based analysis."
+    columns:
+      - name: DATE_SK
+        description: "Surrogate key (YYYYMMDD)."
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_vessel_voyage
+    description: >
+      One row per vessel per report_date.
+    columns:
+      - name: VOYAGE_SK
+        tests: [unique, not_null]
+      - name: DESTINATION_PORT_SK
+        tests:
+          - relationships:
+              to: ref('dim_port')
+              field: PORT_SK
+      - name: DATE_SK
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: DATE_SK
+
+  - name: fact_daily_seismic
+    description: >
+      One row per (event_date × region).
+    columns:
+      - name: DAILY_SEISMIC_SK
+        tests: [unique, not_null]
+      - name: DATE_SK
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: DATE_SK
