@@ -1,6 +1,8 @@
 import os, io, sys, time, logging
 import pandas as pd
 from datetime import datetime
+import boto3
+from botocore.exceptions import ClientError
 
 from vessel_scraper import VesselFinderScraper, OUTPUT_COLUMNS
 from data_quality   import validate
@@ -12,7 +14,6 @@ try:
 except ImportError:
     pass
 
-# ── Config ────────────────────────────────────────────────────────────────────
 SCRAPE_DELAY = float(os.getenv("SCRAPE_DELAY", "4.0"))
 MAX_WORKERS  = int(os.getenv("MAX_WORKERS",  "2")) 
 TEST_MODE    = os.getenv("TEST_MODE",  "false").lower() == "true"
@@ -35,10 +36,18 @@ def _save(df: pd.DataFrame, s3_key: str, local_path: str):
     df = df[OUTPUT_COLUMNS]
 
     if _is_lambda():
-        import boto3
+        s3 = boto3.client("s3", region_name=AWS_REGION)
+        
+        try:
+            s3.head_object(Bucket=S3_BUCKET, Key=s3_key)
+            logger.info(f"File {s3_key} already exists. Skipping upload to prevent overwrite.")
+            return
+        except ClientError:
+            pass
+        
         buf = io.StringIO()
         df.to_csv(buf, index=False)
-        boto3.client("s3", region_name=AWS_REGION).put_object(
+        s3.put_object(
             Bucket=S3_BUCKET, Key=s3_key,
             Body=buf.getvalue(), ContentType="text/csv",
         )
@@ -48,13 +57,19 @@ def _save(df: pd.DataFrame, s3_key: str, local_path: str):
         df.to_csv(local_path, index=False, encoding="utf-8")
         logger.info(f"Saved → {local_path}")
 
-def _run():
+def _run(target_date=None):
     t0  = time.time()
-    now = datetime.now()
-    ds, yr, mo = now.strftime("%Y-%m-%d"), now.strftime("%Y"), now.strftime("%m")
+
+    if target_date:
+        dt = datetime.strptime(target_date, "%Y-%m-%d")
+        logger.info(f"Running with Target Date: {target_date}")
+    else:
+        dt = datetime.now()
+        
+    ds, yr, mo = dt.strftime("%Y-%m-%d"), dt.strftime("%Y"), dt.strftime("%m")
     fname = f"vessels_{ds}.csv"
 
-    logger.info(f"Starting Pipeline | Mode: {'TEST' if TEST_MODE else 'PROD'} | Workers: {MAX_WORKERS}")
+    logger.info(f"Starting Pipeline | Date: {ds} | Mode: {'TEST' if TEST_MODE else 'PROD'} | Workers: {MAX_WORKERS}")
 
     scraper = VesselFinderScraper(
         delay=SCRAPE_DELAY,
@@ -69,8 +84,7 @@ def _run():
         return {"statusCode": 500, "body": "No vessels"}
 
     df = pd.DataFrame(vessels)
-    
-    # ── Validate ────────────────────────────────────────────────────────
+
     ok, msg = validate(df)
 
     good_s3 = f"{S3_PREFIX}/year={yr}/month={mo}/{fname}"
@@ -88,7 +102,8 @@ def _run():
 def lambda_handler(event, context):
     _setup_logging()
     try:
-        return _run()
+        target_date = event.get("target_date")
+        return _run(target_date=target_date)
     except BlockedException as e:
         logger.error(f"EXECUTION ABORTED (BLOCKED): {e}")
         return {"statusCode": 429, "body": "Blocked by target site"}
@@ -98,5 +113,5 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     _setup_logging()
-    result = _run()
+    result = _run() 
     print(f"Final result: {result}")
