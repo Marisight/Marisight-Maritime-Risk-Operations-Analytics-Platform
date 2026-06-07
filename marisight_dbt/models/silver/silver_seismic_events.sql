@@ -2,7 +2,12 @@
 -- Grain    : one row per unique seismic event, deduplicated on EVENT_ID (UNID)
 -- Source   : PROJECT_DB.DBO."marisight.public.seismic_events" (Kafka/Debezium CDC, real-time)
 -- Strategy : MERGE on EVENT_ID; incremental watermark on LAST_UPDATED_AT
-
+-- Notes    :
+--   - LATITUDE, LONGITUDE, MAGNITUDE, DEPTH_KM are NUMBER(38,0) in Bronze (integer precision only)
+--     Decimal precision is lost at ingestion by the Kafka connector — cannot recover
+--   - __DELETED is 'false' for all observed records; filter kept defensively
+--   - EVENT_TYPE / MAGNITUDE_TYPE: raw codes preserved + human-readable label added inline
+--   - DROPPED: ACTION / RECORD_METADATA / SOURCE_CATALOG — CDC internals / zero-variance noise
 
 {{
     config(
