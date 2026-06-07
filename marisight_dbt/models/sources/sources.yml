@@ -5,7 +5,6 @@ sources:
     description: "Raw data from the DBO schema in Snowflake — ingested via S3 stage"
     database: PROJECT_DB                  # Physical Database name
     schema: DBO                           # Physical Schema name
-
     
 
     # ------------------- OVERRIDES & QUOTING -------------------
@@ -33,4 +32,3 @@ sources:
       - name: SEISMIC_EVENTS
         description: "Real-time seismic events from EMSC via Kafka/Debezium CDC pipeline. Contains CDC fields (__DELETED, ACTION) and Kafka metadata (RECORD_METADATA) dropped at Silver."
         identifier: '"marisight.public.seismic_events"'
-
