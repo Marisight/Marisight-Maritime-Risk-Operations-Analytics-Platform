@@ -2,6 +2,12 @@
 -- Grain    : one row per vessel per report date (NAME + REPORT_DATE)
 -- Source   : PROJECT_DB.DBO.VESSEL (VesselFinder daily scrape, all VARCHAR)
 -- Strategy : MERGE on NAME + REPORT_DATE; incremental watermark on _INGESTED_AT
+-- Notes    :
+--   - REPORT_DATE parsed from VARCHAR 'YYYY-MM-DD HH24:MI' → TIMESTAMP
+--   - Departure/arrival raw strings: 'ATD: Mon DD, HH:MI UTC(...)' / 'ATA:...' / 'ETA:...'
+--   - ETA falls forward to base_year+1 for year-end crossovers (future dates only)
+--   - ATD/ATA fall back to base_year-1 for year-start crossovers (past dates only)
+--   - RAW_ATD / RAW_ARRIVAL retained in CTEs for parsing; not emitted to Silver
 
 {{
     config(
