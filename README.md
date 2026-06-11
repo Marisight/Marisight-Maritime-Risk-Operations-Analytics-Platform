@@ -47,34 +47,8 @@ Maritime operations depend on fast, reliable, and integrated data. Port operator
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     MARISIGHT MODERN DATA ARCHITECTURE                      │
-├──────────────┬──────────────────────┬──────────────────┬────────────────────┤
-│ DATA SOURCES │   INGESTION LAYER    │  STAGING (S3)    │  SNOWFLAKE DWH     │
-│              │                      │                  │  (Medallion)       │
-│ Ports API    │  AWS Lambda          │                  │                    │
-│ (Monthly)    │  (API / Scraper)  ──►│  Amazon S3    ──►│  BRONZE  (raw)     │
-│              │        │             │  (Staging /      │     │              │
-│ Vessel       │  AWS EventBridge     │   Backup)        │  SILVER  (clean)   │
-│ Scraper      │  (Scheduling)        │                  │     │              │
-│ (Daily)      │                      │                  │  GOLD    (serving) │
-│              │  ───────────────      │                  │                    │
-│ Seismic      │  Streaming path:     │                  │  dbt Core          │
-│ Events API   │  PostgreSQL          │                  │  (local, SQL to    │
-│ (Real-time)  │  → Debezium (CDC)    │                  │   Snowflake)       │
-│              │  → Kafka             │                  │                    │
-│              │  → [path A] Spark ──►│──────────────────►  ClickHouse        │
-│              │    Streaming         │                  │  (real-time store) │
-│              │  → [path B] Kafka ──►│  ──────────────► │  BRONZE (seismic)  │
-│              │    Snowflake         │                  │                    │
-│              │    Connector         │                  │                    │
-├──────────────┴──────────────────────┴──────────────────┴────────────────────┤
-│  SERVING LAYER: Power BI (batch dashboards) │ Grafana (real-time alerts)    │
-│  ORCHESTRATION: Apache Airflow (local) — Scheduling, Retries, Monitoring    │
-│  VERSION CONTROL: GitHub — DAGs, dbt models, SQL, docs                      │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+[<img width="1537" height="1023" alt="image" src="https://github.com/user-attachments/assets/260d3ec2-94d3-41b7-8363-03a63d2d0101" />
+](https://github.com/Marisight/Marisight-Maritime-Risk-Operations-Analytics-Platform/blob/main/Visualization/last_arch.jpeg?raw=true)
 
 ---
 
@@ -172,11 +146,10 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 
 | Category | Technology |
 |---|---|
-| **Cloud Platform** | AWS (Lambda, S3, EventBridge, EC2 Free Tier) |
-| **Data Warehouse** | Snowflake (Student Trial) |
-| **Transformation** | dbt Core 1.11+ (local, submitting SQL to Snowflake) |
+| **Cloud Platform** | AWS (Lambda, S3, EventBridge |
+| **Data Warehouse** | Snowflake |
+| **Transformation** | dbt Core (local, submitting SQL to Snowflake) |
 | **Streaming Ingestion** | Apache Kafka, Debezium (CDC), Kafka Connect Snowflake Connector |
-| **Stream Processing** | Apache Spark Streaming |
 | **Real-time Store** | ClickHouse |
 | **Orchestration** | Apache Airflow (local) |
 | **Batch Ingestion** | AWS Lambda (Python), AWS EventBridge |
@@ -198,9 +171,9 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 
 Two Lambda functions handle periodic batch collection:
 
-**Ports Lambda** — runs monthly via AWS EventBridge. Downloads the NGA World Port Index CSV (~3,804 rows, 109 columns), uploads directly to the designated S3 prefix, and triggers a Snowflake COPY INTO to land data in `PROJECT_DB.DBO.PORTS`.
+**Marisight_Ports_API** — runs monthly via AWS EventBridge. Downloads the NGA World Port Index CSV (~3,804 rows, 109 columns), uploads directly to the designated S3 prefix, and triggers a Snowflake COPY INTO to land data in `PROJECT_DB.DBO.PORTS`.
 
-**Vessel Lambda** — runs daily via EventBridge. Executes a rate-limited web scraper against VesselFinder's vessel listings, collects active vessel records as CSV, uploads to S3 under a date-partitioned prefix, and triggers COPY INTO to `PROJECT_DB.DBO.VESSEL`. All columns are stored as VARCHAR at Bronze to preserve raw fidelity.
+**Marisight_Vessel_Scraper** — runs daily via EventBridge. Executes a rate-limited web scraper against VesselFinder's vessel listings, collects active vessel records as CSV, uploads to S3 under a date-partitioned prefix, and triggers COPY INTO to `PROJECT_DB.DBO.VESSEL`. All columns are stored as VARCHAR at Bronze to preserve raw fidelity.
 
 #### Streaming Ingestion (Kafka / Debezium)
 
@@ -210,7 +183,7 @@ Seismic events flow through a real-time CDC pipeline:
 2. **Debezium** monitors the PostgreSQL WAL and publishes row-level change events to a **Kafka** topic
 3. Events fork to two consumers:
    - **Kafka Connect Snowflake Connector** → `PROJECT_DB.DBO."marisight.public.seismic_events"` (Bronze). Used by dbt for analytical transformation.
-   - **Spark Streaming** → **ClickHouse** (`seismic_events` table). Used by Grafana for sub-minute real-time monitoring.
+   - **Kafka** → **ClickHouse** (`seismic_events` table). Used by Grafana for sub-minute real-time monitoring.
 
 > **Note on Kafka connector schema inference:** The Snowflake connector infers `LAT`, `LON`, `MAG`, and `DEPTH` as `NUMBER(38,0)`, losing decimal precision at ingestion. This is accepted as an unrecoverable upstream constraint and documented throughout the dbt Silver model.
 
@@ -220,9 +193,9 @@ Seismic events flow through a real-time CDC pipeline:
 
 Amazon S3 acts as the durable intermediate staging layer for all batch data:
 
-- Organized under prefixes by domain and date: `s3://marisight-data/ports/`, `s3://marisight-data/vessels/YYYY-MM-DD/`
+- Organized under prefixes by domain and date: `s3://marisight-staging-layer/ports/`, `s3://marisight-staging-layer/vessels/`
 - Serves as both a trigger point for Snowflake COPY INTO and a long-term backup/audit trail
-- S3 lifecycle policies applied to manage storage costs within student-tier budget
+- S3 lifecycle policies applied to manage storage costs within a student-tier budget
 
 ---
 
@@ -392,7 +365,7 @@ The `streaming-analytics/` directory contains the full real-time analytics stack
 - `cli.sql` — ClickHouse DDL for the `seismic_events` table
 - `grafana_dashboard.json` — pre-built dashboard importable into Grafana
 
-Spark Streaming consumes from the same Kafka topic as the Snowflake connector (parallel consumption, independent consumer groups) and writes transformed events to ClickHouse with sub-minute latency. This path is optimised for Grafana's live monitoring use case without competing with the batch analytical path.
+ClickHouse consumes from the same Kafka topic with sub-minute latency. This path is optimised for Grafana's live monitoring use case without competing with the batch analytical path.
 
 ---
 
@@ -427,7 +400,7 @@ Data quality is enforced at multiple layers:
 
 | Member | Primary Responsibility |
 |---|---|
-| **Abdelrahman** | Silver dbt transformation layer (all three models); co-lead AI Port Recommendation Engine |
+| **Abdelrahman Maged** | Silver dbt transformation layer (all three models); co-lead AI Port Recommendation Engine |
 | **Abdulrahman Mosleh** | Full real-time streaming pipeline (PostgreSQL → Debezium → Kafka → Spark → ClickHouse); Kafka-to-Snowflake connector; AI Port Recommendation Engine (co-lead) |
 | **Ethar Salah** | Batch ingestion (AWS Lambda); Power BI dashboards |
 | **Amira Mohamed** | Airflow DAG orchestration |
@@ -511,7 +484,7 @@ airflow webserver --port 8080
 ### 7. Run the AI Engine (manual / via Airflow)
 
 ```bash
-python sample_output/port_recommendations_engine.py
+python batch_extract/port_recommendations_engine.py
 # Output written to GOLD.GOLD_PORT_RECOMMENDATIONS_V2
 ```
 
@@ -521,7 +494,7 @@ python sample_output/port_recommendations_engine.py
 
 | Limitation | Impact | Status |
 |---|---|---|
-| Vessel destination coordinates all invalid (`IS_VALID_COORDINATES = FALSE`) | `DISTANCE_KM = NULL` in AI recommendations | Upstream data quality issue; weight redistributed |
+| Vessel destination coordinates mostly invalid (`IS_VALID_COORDINATES = FALSE`) | `DISTANCE_KM = NULL` in AI recommendations | Upstream data quality issue; weight redistributed |
 | Seismic numeric fields limited to integer precision (`NUMBER(38,0)`) | Reduced magnitude/coordinate accuracy | Kafka connector schema inference; unrecoverable |
 | dbt Core runs locally (not on managed infrastructure) | Transformation requires local machine availability | Accepted for graduation project scope |
 | Airflow runs locally (not on MWAA) | Orchestration requires local machine availability | Accepted for graduation project scope |
