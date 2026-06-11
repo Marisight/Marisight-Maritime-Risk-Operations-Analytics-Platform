@@ -57,12 +57,12 @@ Maritime operations depend on fast, reliable, and integrated data. Port operator
 | Source | Domain | Format | Cadence | Ingestion Method |
 |---|---|---|---|---|
 | **NGA World Port Index** | Port metadata | CSV via API | Monthly | AWS Lambda → S3 → Snowflake Bronze |
-| **VesselFinder** | Vessel tracking & voyages | HTML scrape → CSV | Daily | AWS Lambda → S3 → Snowflake Bronze |
+| **VesselFinder** | Vessel tracking & voyages | scrape → CSV | Daily | AWS Lambda → S3 → Snowflake Bronze |
 | **EMSC Seismic API** | Global earthquake events | REST/JSON → PostgreSQL | Real-time (CDC) | Debezium → Kafka → Snowflake + ClickHouse |
 
 **Port data** covers 3,804 ports with 109 attributes per port: geography, depth constraints, cargo facilities, supply availability, communications, safety infrastructure, and more.
 
-**Vessel data** captures daily snapshots of active vessels: voyage status, departure/arrival dates, destination coordinates, vessel type, and physical dimensions.
+**Vessel data** Vessel data captures daily snapshots of active Egyptian Cargo and Tanker vessels — the two vessel types directly relevant to Marisight's logistics and energy infrastructure operations. For each vessel, 18 fields are collected: name, type, year built, gross tonnage, deadweight, length, beam, departure date, last port, estimated arrival, destination port and more.
 
 **Seismic data** streams live events from the European Mediterranean Seismological Centre (EMSC), capturing magnitude, depth, location, and event classification for seismic risk proximity scoring.
 
@@ -85,7 +85,7 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 │   └── dags/                     # Airflow DAG definitions
 │       ├── ports_data.py         # Monthly ports batch DAG
 │       ├── seismic_data.py       # Seismic monitoring DAG
-│       └── vessels_data.py       # Daily vessel scrape DAG
+│       └── vessels_data.py       # Daily vessel data DAG
 │
 ├── batch_extract/
 │   ├── ports/
@@ -106,20 +106,19 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 │   │   │   └── silver_seismic_events.sql
 │   │   └── gold/                 # Silver → Gold business logic models
 │   │       ├── daily_aggregated_seismic_events.sql
-│   │       ├── dim_datesql
+│   │       ├── dim_date.sql
 │   │       ├── dim_port.sql
-│   │       ├── dim_seismic_eventsql
+│   │       ├── dim_seismic_event.sql
 │   │       ├── fact_daily_seismic.sql
 │   │       ├── fact_seismic_port_proximity.sql
-│   │       ├── fact_vessel_voyagesql
+│   │       ├── fact_vessel_voyage.sql
 │   │       ├── gold_ports.sql
-│   │       ├── gold_seismic_eventssql
+│   │       ├── gold_seismic_events.sql
 │   │       ├── gold_seismic_port_proximity.sql
 │   │       ├── gold_vessels.sql
 │   │       ├── gold_vessels_with_port_details.sql
-│   │       └── schema-yaml
+│   │       └── schema.yaml
 │   ├── macros/
-│   │   ├── generate_schema_name.sql
 │   │   └── generate_schema_name.sql   # Custom schema routing macro
 │   ├── sources/
 │   │   └── sources.yml
@@ -131,7 +130,7 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 │   ├── set_up_ports.sql          # Snowflake DDL: Bronze ports table
 │   └── set_up_vessels.sql        # Snowflake DDL: Bronze vessels table
 │
-├── streaming-analytics/          # Spark Streaming + ClickHouse
+├── streaming-analytics/          #  ClickHouse
 │   ├── docker-compose.yaml
 │   ├── grafana_dashboard.json    # Grafana dashboard definition
 │   └── cli.sql                   # ClickHouse schema setup
@@ -146,7 +145,7 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 
 | Category | Technology |
 |---|---|
-| **Cloud Platform** | AWS (Lambda, S3, EventBridge |
+| **Cloud Platform** | AWS (Lambda, S3, EventBridge, CloudWatch, SNS IAM role) |
 | **Data Warehouse** | Snowflake |
 | **Transformation** | dbt Core (local, submitting SQL to Snowflake) |
 | **Streaming Ingestion** | Apache Kafka, Debezium (CDC), Kafka Connect Snowflake Connector |
@@ -171,9 +170,9 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 
 Two Lambda functions handle periodic batch collection:
 
-**Marisight_Ports_API** — runs monthly via AWS EventBridge. Downloads the NGA World Port Index CSV (~3,804 rows, 109 columns), uploads directly to the designated S3 prefix, and triggers a Snowflake COPY INTO to land data in `PROJECT_DB.DBO.PORTS`.
+**Marisight_Ports_API** — runs monthly. Downloads the NGA World Port Index CSV (~3,804 rows, 109 columns), uploads directly to the designated S3 prefix, and triggers a Snowflake COPY INTO to land data in `PROJECT_DB.DBO.PORT`. CloudWatch captures all execution logs; SNS fires an alert to the team on download or upload failure.
 
-**Marisight_Vessel_Scraper** — runs daily via EventBridge. Executes a rate-limited web scraper against VesselFinder's vessel listings, collects active vessel records as CSV, uploads to S3 under a date-partitioned prefix, and triggers COPY INTO to `PROJECT_DB.DBO.VESSEL`. All columns are stored as VARCHAR at Bronze to preserve raw fidelity.
+**Marisight_Vessel_Scraper** — runs daily via AWS EventBridge, which guarantees consistent delivery at a fixed time regardless of local machine availability. Executes a rate-limited web scraper (requests + BeautifulSoup) against VesselFinder's Egyptian Cargo and Tanker listings. Anti-blocking measures include a global rate limiter (max 1 request per 1.2 seconds across all threads), per-request User-Agent rotation across five browser profiles, and fail-fast on 403/429 responses. Collected records are uploaded to S3 under a date-partitioned prefix and trigger COPY INTO to `PROJECT_DB.DBO.VESSELS`. All columns are stored as VARCHAR at Bronze to preserve raw fidelity. CloudWatch captures all Lambda execution logs and SNS fires an alert to the team on failure.
 
 #### Streaming Ingestion (Kafka / Debezium)
 
@@ -243,7 +242,7 @@ Business-logic enriched, analytics-ready tables. Consumed directly by Power BI a
 Apache Airflow runs locally and owns the end-to-end pipeline schedule:
 
 ```
-DAG: vessels_data          → Daily    → Lambda trigger → Snowflake COPY → dbt Silver → dbt Gold → AI Engine
+DAG: vessels_data          → Daily    → s3 sensor → Snowflake COPY → dbt Silver → dbt Gold → AI Engine
 DAG: ports_data            → Monthly  → Lambda trigger → Snowflake COPY → dbt Silver → dbt Gold
 DAG: seismic_data          → Sensor   → Kafka connector health check → dbt Silver seismic → Gold proximity scoring
 ```
@@ -329,7 +328,7 @@ Gold models materialise as `table` (full refresh each run). Business logic appli
 
 ## AI Port Recommendation Engine
 
-**File:** `sample_output/port_recommendations_engine.py`  
+**File:** `batch_extract/port_recommendations_engine.py`  
 **Output table:** `PROJECT_DB.GOLD.GOLD_PORT_RECOMMENDATIONS_V2`
 
 The engine runs as the final Airflow task after the Gold dbt run completes. For each active vessel it:
@@ -357,11 +356,11 @@ The engine runs as the final Airflow task after the Gold dbt run completes. For 
 
 ## Streaming Analytics
 
-**Stack:** Docker Compose → Kafka → Spark Streaming → ClickHouse → Grafana
+**Stack:** Docker Compose → Kafka → ClickHouse → Grafana
 
 The `streaming-analytics/` directory contains the full real-time analytics stack:
 
-- `docker-compose.yaml` — orchestrates Kafka, Zookeeper, Spark, ClickHouse, and Grafana containers
+- `docker-compose.yaml` — orchestrates Kafka, Zookeeper, ClickHouse, and Grafana containers
 - `cli.sql` — ClickHouse DDL for the `seismic_events` table
 - `grafana_dashboard.json` — pre-built dashboard importable into Grafana
 
@@ -373,12 +372,25 @@ ClickHouse consumes from the same Kafka topic with sub-minute latency. This path
 
 Data quality is enforced at multiple layers:
 
+**Application-Level Gate (Vessel Scraper)**
+
+Before any scraped data reaches S3, a validation layer runs inside the Lambda function:
+
+Fatal checks abort the pipeline and route the file to a `quarantine/` S3 prefix, then fire an SNS alert:
+- DataFrame is empty — scraping returned no records
+- All vessel names are NULL — HTML structure changed (schema drift at source)
+- Required column missing — unexpected schema change in scraper output
+
+Warnings are logged without blocking the pipeline:
+- Vessel count below 50 — possible IP rate-limiting or partial block
+- Optional fields missing (arrival date, reported status) — expected for vessels at anchor with no active voyage
+  
 **dbt Tests (`schema.yml`)**
 - `not_null` on all primary keys and critical timestamps
 - `unique` on grain keys (`WORLD_PORT_INDEX_NUMBER`, `EVENT_ID`)
 - `accepted_values` on `HARBOR_SIZE` with `severity: warn` (non-blocking — allows novel values to pass through while surfacing in dbt logs)
 - Source freshness checks on `DBO.VESSEL`: warn after 25 hours, error after 49 hours
-
+  
 **Silver Transformation Flags**
 - `IS_VALID_COORDINATES` — coordinate range check on all spatial fields
 - `IS_TEMPORAL_ANOMALY` — flags vessels where ATA < ATD at date grain
@@ -488,18 +500,15 @@ python batch_extract/port_recommendations_engine.py
 | Snowflake Student Trial (400 credits) | Limited compute hours | Warehouse auto-suspend + XS size throughout |
 
 ---
-
 ## Team
 
-| Member | Primary Responsibility |
-|---|---|
-| **Abdelrahman Maged** | Silver dbt transformation layer (all three models); co-lead AI Port Recommendation Engine |
-| **Abdulrahman Mosleh** | Full real-time streaming pipeline (PostgreSQL → Debezium → Kafka → Spark → ClickHouse); Kafka-to-Snowflake connector; AI Port Recommendation Engine (co-lead) |
-| **Ethar Salah** | Batch ingestion (AWS Lambda); Power BI dashboards |
-| **Amira Mohamed** | Airflow DAG orchestration |
-| **Alaa Mahdy** | Gold dbt models; Grafana real-time monitoring |
+- Abdelrahman Maged - [GitHub Profile](https://github.com/AbdelrahmanMaged1)
+- Abdulrahman Mosleh - [GitHub Profile](https://github.com/Mosleh02)
+- Ethar Salah - [GitHub Profile](https://github.com/ethar-salah7)
+- Amira Mohamed - [GitHub Profile](https://github.com/Amiramuhammed)
+- Alaa Mahdy - [GitHub Profile](https://github.com/Alaa303)
 
-> All team members contributed across layers; roles reflect primary ownership.
+> All team members contributed across layers.
 ---
 
-*Built with ❤️ by the Marisight team — ITI Data Engineering Track, R2 2026*
+*Built with ❤️ for safer maritime operations — ITI Data Engineering Track, R2 2026*
