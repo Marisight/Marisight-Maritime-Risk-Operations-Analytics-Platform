@@ -145,7 +145,7 @@ Marisight-Maritime-Risk-Operations-Analytics-Platform/
 
 | Category | Technology |
 |---|---|
-| **Cloud Platform** | AWS (Lambda, S3, EventBridge, CloudWatch, SNS IAM role) |
+| **Cloud Platform** | AWS (Lambda, S3, EventBridge, CloudWatch, SNS, IAM role) |
 | **Data Warehouse** | Snowflake |
 | **Transformation** | dbt Core (local, submitting SQL to Snowflake) |
 | **Streaming Ingestion** | Apache Kafka, Debezium (CDC), Kafka Connect Snowflake Connector |
@@ -375,7 +375,6 @@ Data quality is enforced at multiple layers:
 **Application-Level Gate (Vessel Scraper)**
 
 Before any scraped data reaches S3, a validation layer runs inside the Lambda function:
-
 Fatal checks abort the pipeline and route the file to a `quarantine/` S3 prefix, then fire an SNS alert:
 - DataFrame is empty — scraping returned no records
 - All vessel names are NULL — HTML structure changed (schema drift at source)
