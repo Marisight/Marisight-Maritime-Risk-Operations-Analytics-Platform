@@ -57,12 +57,12 @@ Maritime operations depend on fast, reliable, and integrated data. Port operator
 | Source | Domain | Format | Cadence | Ingestion Method |
 |---|---|---|---|---|
 | **NGA World Port Index** | Port metadata | CSV via API | Monthly | AWS Lambda → S3 → Snowflake Bronze |
-| **VesselFinder** | Vessel tracking & voyages | scrape → CSV | Daily | AWS Lambda → S3 → Snowflake Bronze |
+| **VesselFinder** | Vessel tracking & voyages | Scrape → CSV | Daily | AWS Lambda → S3 → Snowflake Bronze |
 | **EMSC Seismic API** | Global earthquake events | REST/JSON → PostgreSQL | Real-time (CDC) | Debezium → Kafka → Snowflake + ClickHouse |
 
 **Port data** covers 3,804 ports with 109 attributes per port: geography, depth constraints, cargo facilities, supply availability, communications, safety infrastructure, and more.
 
-**Vessel data** Vessel data captures daily snapshots of active Egyptian Cargo and Tanker vessels — the two vessel types directly relevant to Marisight's logistics and energy infrastructure operations. For each vessel, 18 fields are collected: name, type, year built, gross tonnage, deadweight, length, beam, departure date, last port, estimated arrival, destination port and more.
+**Vessel data** vessel data captures daily snapshots of active Egyptian Cargo and Tanker vessels — the two vessel types directly relevant to Marisight's logistics and energy infrastructure operations. For each vessel, 18 fields are collected: name, type, year built, gross tonnage, deadweight, length, beam, departure date, last port, estimated arrival, destination port and more.
 
 **Seismic data** streams live events from the European Mediterranean Seismological Centre (EMSC), capturing magnitude, depth, location, and event classification for seismic risk proximity scoring.
 
