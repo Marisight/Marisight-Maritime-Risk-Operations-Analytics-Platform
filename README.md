@@ -25,9 +25,9 @@ Marisight is an end-to-end modern data platform that ingests, transforms, and se
 - [AI Port Recommendation Engine](#ai-port-recommendation-engine)
 - [Streaming Analytics](#streaming-analytics)
 - [Data Quality](#data-quality)
-- [Team](#team)
 - [Setup & Quickstart](#setup--quickstart)
 - [Known Limitations](#known-limitations)
+- [Team](#team)
 
 ---
 
