@@ -1,0 +1,46 @@
+services:
+  seismic-ingestion:
+    build: .
+    container_name: seismic_streamer
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres_db
+      - DB_NAME=seismic_data
+      - DB_USER=alaa
+      - DB_PASSWORD=1234
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres_db
+    restart: always
+    networks:                    
+      - marisight_net            
+
+  postgres_db:
+    image: postgres:15
+    container_name: postgres_container
+    environment:
+      - POSTGRES_USER=alaa
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=seismic_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    command: >                              
+      postgres                             
+      -c wal_level=logical                 
+      -c max_replication_slots=5           
+      -c max_wal_senders=5                 
+    networks:                    
+      - marisight_net            
+
+volumes:
+  postgres_data:
+    external: true
+    name: python-websocket_postgres_data  
+
+networks:                        
+  marisight_net:                 
+    external: true               
