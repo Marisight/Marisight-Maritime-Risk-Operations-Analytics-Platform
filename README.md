@@ -394,19 +394,6 @@ Data quality is enforced at multiple layers:
 - Active vessel coordinates all invalid in current dataset — documented, flagged in AI engine output
 - Kafka-owned seismic table name cannot be renamed — resolved via dbt `identifier:` override
 
----
-
-## Team
-
-| Member | Primary Responsibility |
-|---|---|
-| **Abdelrahman Maged** | Silver dbt transformation layer (all three models); co-lead AI Port Recommendation Engine |
-| **Abdulrahman Mosleh** | Full real-time streaming pipeline (PostgreSQL → Debezium → Kafka → Spark → ClickHouse); Kafka-to-Snowflake connector; AI Port Recommendation Engine (co-lead) |
-| **Ethar Salah** | Batch ingestion (AWS Lambda); Power BI dashboards |
-| **Amira Mohamed** | Airflow DAG orchestration |
-| **Alaa Mahdy** | Gold dbt models; Grafana real-time monitoring |
-
-> All team members contributed across layers; roles reflect primary ownership.
 
 ---
 
@@ -500,6 +487,19 @@ python batch_extract/port_recommendations_engine.py
 | Airflow runs locally (not on MWAA) | Orchestration requires local machine availability | Accepted for graduation project scope |
 | Snowflake Student Trial (400 credits) | Limited compute hours | Warehouse auto-suspend + XS size throughout |
 
+---
+
+## Team
+
+| Member | Primary Responsibility |
+|---|---|
+| **Abdelrahman Maged** | Silver dbt transformation layer (all three models); co-lead AI Port Recommendation Engine |
+| **Abdulrahman Mosleh** | Full real-time streaming pipeline (PostgreSQL → Debezium → Kafka → Spark → ClickHouse); Kafka-to-Snowflake connector; AI Port Recommendation Engine (co-lead) |
+| **Ethar Salah** | Batch ingestion (AWS Lambda); Power BI dashboards |
+| **Amira Mohamed** | Airflow DAG orchestration |
+| **Alaa Mahdy** | Gold dbt models; Grafana real-time monitoring |
+
+> All team members contributed across layers; roles reflect primary ownership.
 ---
 
 *Built with ❤️ by the Marisight team — ITI Data Engineering Track, R2 2026*
