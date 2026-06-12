@@ -1,0 +1,23 @@
+{
+  "name": "seismic-snowflake-sink",
+  "config": {
+    "connector.class": "com.snowflake.kafka.connector.SnowflakeStreamingSinkConnector",
+    "tasks.max": "1",
+    "topics": "marisight.public.seismic_events",
+    "snowflake.url.name": "${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com",
+    "snowflake.user.name": "${SNOWFLAKE_USER}",
+    "snowflake.private.key": "${SNOWFLAKE_PRIVATE_KEY}",
+    "snowflake.database.name": "${SNOWFLAKE_DATABASE}",
+    "snowflake.schema.name": "${SNOWFLAKE_SCHEMA}",
+    "snowflake.warehouse": "${SNOWFLAKE_WAREHOUSE}",
+    "snowflake.role.name": "${SNOWFLAKE_ROLE}",
+    "snowflake.enable.schematization": "true",
+    "snowflake.streaming.validate.compatibility.with.classic": "false",
+    "buffer.count.records": "50",
+    "buffer.flush.time": "10800",
+    "buffer.size.bytes": "10000000",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081"
+  }
+}
