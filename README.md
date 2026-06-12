@@ -484,7 +484,7 @@ docker exec postgres_container psql -U $POSTGRES_USER -d $POSTGRES_DB \
 #### 4b. Kafka + Debezium + Kafka Connect
 
 ```bash
-cd ../kafka-deb
+cd ../kafka
 
 # copy and fill in your credentials
 cp .env.example .env
