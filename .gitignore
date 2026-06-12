@@ -247,6 +247,7 @@ __marimo__/
 
 #plugins used in with kafka (available online)
 kafka-plugins/
+.jar
 
 # Streamlit
 .streamlit/secrets.toml
