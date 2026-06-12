@@ -73,11 +73,23 @@ Maritime operations depend on fast, reliable, and integrated data. Port operator
 ```
 Marisight-Maritime-Risk-Operations-Analytics-Platform/
 │
-├── Streaming_ingestion/          # Real-time pipeline components
-│   ├── Dockerfile
-│   ├── docker-compose.yaml       # Kafka + Debezium + ClickHouse stack
-│   ├── ingest.py                 # PostgreSQL seismic event poller
-│   └── req.txt
+├── Streaming_ingestion/          # Real-time CDC pipeline
+│   ├── Dockerfile                # PostgreSQL WebSocket ingestion image
+│   ├── docker-compose.yml        # PostgreSQL + seismic streamer stack
+│   ├── ingest.py                 # EMSC WebSocket → PostgreSQL producer
+│   ├── req.txt                   # Python dependencies
+│   └── .env.example              # Environment variable template
+│
+├── kafka/                    # Kafka + Debezium + Connect stack
+│   ├── docker-compose.yml        # 3-broker Kafka + Schema Registry + 
+│   │                             # Kafka Connect + Kafka UI
+│   ├── register_connectors.py    # Connector registration script
+│   ├── .env.example              # Environment variable template
+│   ├── .gitignore
+│   └── connectors/               # Kafka Connect connector configs
+│       ├── debezium-source.json  # Debezium PostgreSQL source connector
+│       └── snowflake-sink.json   # Snowflake Streaming sink connector
+│       └── register_connectors.sh  # bash script to register connectors
 │
 ├── Visualization/                # Power BI reports (.pbix)
 │
@@ -448,13 +460,75 @@ dbt test           # Run data quality tests
 
 ### 4. Start the Streaming Stack
 
+#### 4a. PostgreSQL + Seismic Ingestion
+
 ```bash
 cd Streaming_ingestion
-docker-compose up -d     # Starts Kafka, Zookeeper, Debezium, PostgreSQL
 
-cd ../streaming-analytics
-docker-compose up -d     # Starts Spark, ClickHouse, Grafana
+# copy and fill in your credentials
+cp .env.example .env
+
+# create the shared Docker network (once only)
+docker network create marisight_net
+
+# start PostgreSQL and seismic streamer
+docker-compose up -d
 ```
+
+Verify data is being collected:
+```bash
+docker exec postgres_container psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT COUNT(*) FROM seismic_events;"
+```
+
+#### 4b. Kafka + Debezium + Kafka Connect
+
+```bash
+cd ../kafka-deb
+
+# copy and fill in your credentials
+cp .env.example .env
+
+# download Kafka Connect plugins into kafka-plugins/ directory:
+# - Snowflake Kafka Connector v4.0.0
+#   https://github.com/snowflakedb/snowflake-kafka-connector/releases
+# - Confluent Avro Converter v8.2.1
+#   https://www.confluent.io/hub/confluentinc/kafka-connect-avro-converter
+
+mkdir kafka-plugins
+# place unzipped plugin folders inside kafka-plugins/
+
+# start the Kafka stack
+docker-compose up -d
+
+# wait for Kafka Connect to be ready then register connectors
+# register connectors
+# Linux / Mac / WSL:
+chmod +x register_connectors.sh
+./register_connectors.sh
+
+# Windows (PowerShell) — run curl commands manually:
+# See connectors/debezium-source.json and connectors/snowflake-sink.json
+# curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d @connectors/debezium-source.json
+# curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d @connectors/snowflake-sink.json
+```
+
+Verify connectors are running:
+```bash
+curl http://localhost:8083/connectors/seismic-events-connector/status
+curl http://localhost:8083/connectors/seismic-snowflake-sink/status
+```
+
+Monitor topics and messages via Kafka UI at `http://localhost:8080`
+
+#### 4c. ClickHouse + Grafana (Real-time Monitoring)
+
+```bash
+cd ../streaming-analytics
+docker-compose up -d
+```
+
+Import `grafana_dashboard.json` into Grafana at `http://localhost:3000`
 
 ### 5. Deploy Batch Lambdas
 
