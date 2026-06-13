@@ -94,10 +94,10 @@ services:
       - "8123:8123"
       - "9000:9000"
     environment:
-      - CLICKHOUSE_USER=admin
-      - CLICKHOUSE_PASSWORD=adminpassword123
-      - CLICKHOUSE_DB=marisight_db
-      - CLICKHOUSE_KAFKA_AUTO_OFFSET_RESET=earliest
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB}
+      - CLICKHOUSE_KAFKA_AUTO_OFFSET_RESET=${CLICKHOUSE_KAFKA_AUTO_OFFSET_RESET}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       # - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
